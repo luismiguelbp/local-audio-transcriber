@@ -9,7 +9,7 @@ A desktop application for transcribing audio files using OpenAI's Whisper API. D
 - **Smart Splitting** - Uses silence detection to split audio at natural pauses
 - **Batch Processing** - Queue multiple files for transcription
 - **Progress Tracking** - Real-time progress for each file and chunk
-- **Live Recording Transcript** - Live transcript uses larger context windows and recent transcript context for better continuity
+- **Live Recording Modes** - Choose `Live Transcript` for near-real-time updates or `Record and Transcribe` to transcribe after stopping
 
 ## Supported Audio Formats
 
@@ -123,6 +123,20 @@ sudo apt install ffmpeg
 5. **Open output directory quickly**
    - Use the `Output` button in the main header, or the `Open` button next to the output directory in Settings
 
+6. **Use Live Recording**
+   - Switch to **Live Recording** mode in the app
+   - Select microphone/system audio devices and your model
+   - Choose a recording mode:
+     - `Live Transcript`: transcript updates while recording
+     - `Record and Transcribe`: records first, then transcribes after you stop
+   - Quick rule:
+     - Pick `Live Transcript` for immediate notes during calls
+     - Pick `Record and Transcribe` when you want the best final transcript quality
+   - Recording controls:
+     - `Stop Recording`: finalize and save audio/transcript outputs
+     - `Cancel`: stop immediately, discard current audio/transcript, and reset the UI without completion popup
+   - Start recording and stop when finished; audio and transcript files are saved to the output directory
+
 ## Configuration
 
 Settings are stored in `~/.local-transcriber/config.json`:
@@ -130,6 +144,7 @@ Settings are stored in `~/.local-transcriber/config.json`:
 - **Theme** - `System`, `White`, or `Dark`
 - **OpenAI API Key Env Var Name** - OS environment variable name used to resolve the API key (default: `OPENAI_API_KEY`)
 - **Output Directory** - Where transcription files are saved (default: `~/Documents/Transcriptions`)
+- **Live Recording Mode** - Default Live Recording behavior (`Live Transcript` or `Record and Transcribe`)
 
 Application logs are written to `~/.local-transcriber/logs/application.log` with
 automatic rotation (up to 5 files of ~5MB each).

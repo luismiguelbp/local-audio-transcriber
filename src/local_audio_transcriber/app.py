@@ -68,7 +68,19 @@ SECONDARY_BUTTON_HOVER_COLOR = ("#cbd5e1", "#475569")
 SECONDARY_BUTTON_TEXT_COLOR = ("#111827", "#f9fafb")
 DANGER_BUTTON_FG_COLOR = ("#b91c1c", "#dc2626")
 DANGER_BUTTON_HOVER_COLOR = ("#991b1b", "#b91c1c")
+SUCCESS_BUTTON_FG_COLOR = ("#16a34a", "#22c55e")
+SUCCESS_BUTTON_HOVER_COLOR = ("#15803d", "#16a34a")
+ACTION_BUTTON_TEXT_COLOR = ("#f8fafc", "#f8fafc")
 LIVE_TRANSCRIPTION_SEGMENT_SECONDS = 10
+LIVE_TRANSCRIPT_MODE = "Live Transcript"
+RECORD_AND_TRANSCRIBE_MODE = "Record and Transcribe"
+LIVE_RECORDING_MODES = (LIVE_TRANSCRIPT_MODE, RECORD_AND_TRANSCRIBE_MODE)
+
+
+def recording_mode_help_text(mode: str) -> str:
+    if mode == RECORD_AND_TRANSCRIBE_MODE:
+        return "Best for accuracy: transcribes once after you stop recording."
+    return "Best for immediacy: shows transcript updates while recording."
 
 
 class ConfigManager:
@@ -87,6 +99,7 @@ class ConfigManager:
             'mic_device': '',
             'system_device': '',
             'transcription_model': DEFAULT_MODEL,
+            'live_recording_mode': LIVE_TRANSCRIPT_MODE,
         }
         if self.config_path.exists():
             try:
@@ -140,6 +153,21 @@ class ConfigManager:
     @transcription_model.setter
     def transcription_model(self, value: str):
         self.config['transcription_model'] = value
+        self.save()
+
+    @property
+    def live_recording_mode(self) -> str:
+        value = str(self.config.get('live_recording_mode', LIVE_TRANSCRIPT_MODE)).strip()
+        if value not in LIVE_RECORDING_MODES:
+            return LIVE_TRANSCRIPT_MODE
+        return value
+
+    @live_recording_mode.setter
+    def live_recording_mode(self, value: str):
+        normalized = str(value).strip()
+        if normalized not in LIVE_RECORDING_MODES:
+            normalized = LIVE_TRANSCRIPT_MODE
+        self.config['live_recording_mode'] = normalized
         self.save()
 
     @property
@@ -505,6 +533,7 @@ class TranscriberApp(_DnDCTk):
         self.live_monitor: Optional[LiveAudioLevelMonitor] = None
         self.live_transcriber: Optional[RollingStreamingTranscriber] = None
         self.is_recording = False
+        self.live_cancel_requested = False
         self.current_mode = "File Upload"
         self.live_transcript = ""
         self.live_audio_path: Optional[Path] = None
@@ -829,6 +858,41 @@ class TranscriberApp(_DnDCTk):
         self.model_menu.set(model_choice)
         self.config.transcription_model = model_choice
 
+        ctk.CTkLabel(
+            device_frame,
+            text="Mode",
+            text_color=SECONDARY_TEXT_COLOR,
+            anchor="w",
+        ).grid(
+            row=4, column=0, sticky="w", padx=15, pady=(0, 15)
+        )
+        self.live_recording_mode_menu = ctk.CTkOptionMenu(
+            device_frame,
+            values=list(LIVE_RECORDING_MODES),
+            command=self._on_live_recording_mode_selected,
+            height=34,
+            corner_radius=8,
+            fg_color=PRIMARY_BUTTON_FG_COLOR,
+            button_color=PRIMARY_BUTTON_FG_COLOR,
+            button_hover_color=PRIMARY_BUTTON_HOVER_COLOR,
+            dropdown_fg_color=CARD_FG_COLOR,
+            dropdown_hover_color=HOVER_COLOR,
+            dropdown_text_color=PRIMARY_TEXT_COLOR,
+        )
+        self.live_recording_mode_menu.grid(row=4, column=1, sticky="ew", padx=(0, 15), pady=(0, 15))
+        mode_choice = self.config.live_recording_mode
+        self.live_recording_mode_menu.set(mode_choice)
+        self.config.live_recording_mode = mode_choice
+        self.mode_help_label = ctk.CTkLabel(
+            device_frame,
+            text=recording_mode_help_text(mode_choice),
+            text_color=MUTED_TEXT_COLOR,
+            anchor="w",
+            justify="left",
+            font=ctk.CTkFont(size=11),
+        )
+        self.mode_help_label.grid(row=5, column=1, sticky="ew", padx=(0, 15), pady=(0, 12))
+
         meter_frame = ctk.CTkFrame(self.live_mode_frame, fg_color=CARD_FG_COLOR, corner_radius=12)
         meter_frame.pack(fill="x", padx=20, pady=(0, 10))
         meter_frame.grid_columnconfigure(1, weight=1)
@@ -879,9 +943,23 @@ class TranscriberApp(_DnDCTk):
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=PRIMARY_BUTTON_FG_COLOR,
             hover_color=PRIMARY_BUTTON_HOVER_COLOR,
+            text_color=ACTION_BUTTON_TEXT_COLOR,
             command=self._toggle_live_recording,
         )
         self.record_btn.pack(side="left")
+        self.cancel_record_btn = ctk.CTkButton(
+            control_frame,
+            text="Cancel",
+            width=110,
+            height=40,
+            corner_radius=8,
+            font=ctk.CTkFont(size=14),
+            fg_color=SECONDARY_BUTTON_FG_COLOR,
+            hover_color=SECONDARY_BUTTON_HOVER_COLOR,
+            text_color=ACTION_BUTTON_TEXT_COLOR,
+            command=self._cancel_live_recording,
+            state="disabled",
+        )
 
         self.live_status_label = ctk.CTkLabel(
             control_frame,
@@ -891,6 +969,7 @@ class TranscriberApp(_DnDCTk):
             anchor="w",
         )
         self.live_status_label.pack(side="left", fill="x", expand=True, padx=15)
+        self._set_record_action_buttons_idle()
 
         transcript_header = ctk.CTkFrame(self.live_mode_frame, fg_color="transparent")
         transcript_header.pack(fill="x", padx=20, pady=(10, 5))
@@ -986,6 +1065,16 @@ class TranscriberApp(_DnDCTk):
     def _on_model_selected(self, value: str):
         self.config.transcription_model = value
 
+    def _on_live_recording_mode_selected(self, value: str):
+        self.config.live_recording_mode = value
+        self.mode_help_label.configure(text=recording_mode_help_text(value))
+
+    def _selected_live_recording_mode(self) -> str:
+        selected = self.live_recording_mode_menu.get()
+        if selected not in LIVE_RECORDING_MODES:
+            return LIVE_TRANSCRIPT_MODE
+        return selected
+
     def _selected_mic_device(self) -> Optional[AudioDevice]:
         return find_device_by_label(self.mic_devices, self.mic_menu.get())
 
@@ -1037,9 +1126,56 @@ class TranscriberApp(_DnDCTk):
         self.mic_menu.configure(state=state)
         self.system_menu.configure(state=state)
         self.model_menu.configure(state=state)
+        self.live_recording_mode_menu.configure(state=state)
 
     def _update_live_status(self, message: str):
         self.after(0, lambda: self.live_status_label.configure(text=message))
+
+    def _set_record_action_buttons_idle(self):
+        self.record_btn.configure(
+            text="Start Recording",
+            state="normal",
+            fg_color=PRIMARY_BUTTON_FG_COLOR,
+            hover_color=PRIMARY_BUTTON_HOVER_COLOR,
+            text_color=ACTION_BUTTON_TEXT_COLOR,
+        )
+        self.cancel_record_btn.configure(state="disabled")
+        if self.cancel_record_btn.winfo_manager():
+            self.cancel_record_btn.pack_forget()
+
+    def _set_record_action_buttons_recording(self):
+        self.record_btn.configure(
+            text="Stop Recording",
+            state="normal",
+            fg_color=SUCCESS_BUTTON_FG_COLOR,
+            hover_color=SUCCESS_BUTTON_HOVER_COLOR,
+            text_color=ACTION_BUTTON_TEXT_COLOR,
+        )
+        self.cancel_record_btn.configure(
+            state="normal",
+            fg_color=DANGER_BUTTON_FG_COLOR,
+            hover_color=DANGER_BUTTON_HOVER_COLOR,
+            text_color=ACTION_BUTTON_TEXT_COLOR,
+        )
+        if not self.cancel_record_btn.winfo_manager():
+            self.cancel_record_btn.pack(side="left", padx=(10, 0), before=self.live_status_label)
+
+    def _set_record_action_buttons_busy(self, record_text: str):
+        self.record_btn.configure(text=record_text, state="disabled")
+        self.cancel_record_btn.configure(state="disabled")
+
+    def _cleanup_live_recording_files(
+        self,
+        audio_path: Optional[Path],
+        transcript_path: Optional[Path] = None,
+    ) -> None:
+        for path in (audio_path, transcript_path):
+            if path is None:
+                continue
+            try:
+                Path(path).unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def _set_live_levels(self, mic_level: float, system_level: float):
         self.after(0, lambda: (
@@ -1048,7 +1184,7 @@ class TranscriberApp(_DnDCTk):
         ))
 
     def _append_live_transcript(self, text: str):
-        if not text:
+        if not text or self.live_cancel_requested:
             return
 
         def update():
@@ -1097,12 +1233,17 @@ class TranscriberApp(_DnDCTk):
 
         elapsed = self.live_recorder.elapsed_seconds
         minutes, seconds = divmod(elapsed, 60)
-        self.live_status_label.configure(
-            text=(
-                f"Recording {minutes:02d}:{seconds:02d} - transcript updates about every "
-                f"{LIVE_TRANSCRIPTION_SEGMENT_SECONDS} seconds."
+        if self._selected_live_recording_mode() == RECORD_AND_TRANSCRIBE_MODE:
+            self.live_status_label.configure(
+                text=f"Recording {minutes:02d}:{seconds:02d} - transcript will be generated after stop."
             )
-        )
+        else:
+            self.live_status_label.configure(
+                text=(
+                    f"Recording {minutes:02d}:{seconds:02d} - transcript updates about every "
+                    f"{LIVE_TRANSCRIPTION_SEGMENT_SECONDS} seconds."
+                )
+            )
         self.after(1000, self._update_recording_timer)
 
     def _start_live_recording(self):
@@ -1130,8 +1271,10 @@ class TranscriberApp(_DnDCTk):
         timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.live_audio_path = output_dir / f"meeting_{timestamp}.wav"
         self.live_transcript_path = output_dir / f"meeting_{timestamp}_transcription.txt"
+        recording_mode = self._selected_live_recording_mode()
         logger.info(
-            "Starting live recording (mic=%s, system=%s, model=%s, output_audio=%s)",
+            "Starting live recording (mode=%s, mic=%s, system=%s, model=%s, output_audio=%s)",
+            recording_mode,
             self.mic_menu.get(),
             self.system_menu.get(),
             self.model_menu.get(),
@@ -1140,29 +1283,32 @@ class TranscriberApp(_DnDCTk):
 
         self._stop_level_monitor()
         self._reset_live_transcript()
+        self.live_cancel_requested = False
         self._set_live_controls_state("disabled")
-        self.record_btn.configure(
-            text="Stop Recording",
-            fg_color=DANGER_BUTTON_FG_COLOR,
-            hover_color=DANGER_BUTTON_HOVER_COLOR,
-        )
-        self._update_status("Recording live audio...")
+        self._set_record_action_buttons_recording()
+        if recording_mode == RECORD_AND_TRANSCRIBE_MODE:
+            self.live_transcriber = None
+            self._update_status("Recording audio for later transcription...")
+            self._update_live_status("Recording audio. Transcript will be generated after stop.")
+        else:
+            self._update_status("Recording live audio...")
+            self.live_transcriber = RollingStreamingTranscriber(
+                api_key=api_key,
+                model=self.model_menu.get(),
+                on_delta=self._append_live_transcript,
+                on_status=self._update_live_status,
+                on_error=lambda message: self._update_live_status(f"Transcription error: {message}"),
+            )
+            self.live_transcriber.start()
 
-        self.live_transcriber = RollingStreamingTranscriber(
-            api_key=api_key,
-            model=self.model_menu.get(),
-            on_delta=self._append_live_transcript,
-            on_status=self._update_live_status,
-            on_error=lambda message: self._update_live_status(f"Transcription error: {message}"),
-        )
-        self.live_transcriber.start()
+        segment_callback = self._queue_live_audio_segment if recording_mode == LIVE_TRANSCRIPT_MODE else None
 
         self.live_recorder = LiveAudioRecorder(
             mic_device=mic_device,
             system_device=system_device,
             output_path=self.live_audio_path,
             level_callback=self._set_live_levels,
-            segment_callback=self._queue_live_audio_segment,
+            segment_callback=segment_callback,
             segment_seconds=LIVE_TRANSCRIPTION_SEGMENT_SECONDS,
         )
 
@@ -1170,15 +1316,12 @@ class TranscriberApp(_DnDCTk):
             self.live_recorder.start()
         except LiveRecorderError as e:
             logger.exception("Failed to start live recording.")
-            self.live_transcriber.stop(wait=False)
+            if self.live_transcriber is not None:
+                self.live_transcriber.stop(wait=False)
             self.live_transcriber = None
             self.live_recorder = None
             self._set_live_controls_state("normal")
-            self.record_btn.configure(
-                text="Start Recording",
-                fg_color=PRIMARY_BUTTON_FG_COLOR,
-                hover_color=PRIMARY_BUTTON_HOVER_COLOR,
-            )
+            self._set_record_action_buttons_idle()
             self._restart_level_monitor()
             messagebox.showerror("Live Recording", str(e))
             return
@@ -1188,7 +1331,7 @@ class TranscriberApp(_DnDCTk):
 
     def _queue_live_audio_segment(self, samples, sample_rate: int, final: bool = False):
         """Send the already-mixed recorder segment to the transcription worker."""
-        if self.live_transcriber is None:
+        if self.live_transcriber is None or self.live_cancel_requested:
             return
         self.live_transcriber.add_audio_segment(samples, sample_rate, final)
         if final:
@@ -1202,26 +1345,78 @@ class TranscriberApp(_DnDCTk):
             return
 
         self.is_recording = False
-        self.record_btn.configure(text="Stopping...", state="disabled")
-        self._update_live_status("Stopping recording and finalizing transcript...")
+        self.live_cancel_requested = False
+        self._set_record_action_buttons_busy("Stopping...")
+        if self._selected_live_recording_mode() == RECORD_AND_TRANSCRIBE_MODE:
+            self._update_live_status("Stopping recording...")
+        else:
+            self._update_live_status("Stopping recording and finalizing transcript...")
         threading.Thread(target=self._stop_live_recording_worker, daemon=True).start()
+
+    def _cancel_live_recording(self):
+        """Cancel active recording and discard generated outputs."""
+        if not self.is_recording:
+            return
+
+        self.is_recording = False
+        self.live_cancel_requested = True
+        self._set_record_action_buttons_busy("Canceling...")
+        self._update_status("Canceling live recording...")
+        self._update_live_status("Canceling recording. Discarding audio and transcript...")
+        threading.Thread(target=self._cancel_live_recording_worker, daemon=True).start()
+
+    def _cancel_live_recording_worker(self):
+        audio_path = self.live_audio_path
+        transcript_path = self.live_transcript_path
+        try:
+            if self.live_recorder is not None:
+                audio_path = self.live_recorder.stop()
+            if self.live_transcriber is not None:
+                self.live_transcriber.stop(wait=False)
+
+            self._cleanup_live_recording_files(audio_path, transcript_path)
+            self.after(0, self._finish_live_recording_cancel_ui)
+        except Exception as e:
+            logger.exception("Live recording cancel failed.")
+            message = str(e)
+            self.after(0, lambda msg=message: self._fail_live_recording_ui(msg))
 
     def _stop_live_recording_worker(self):
         audio_path = self.live_audio_path
         transcript_path = self.live_transcript_path
+        recording_mode = self._selected_live_recording_mode()
 
         try:
             if self.live_recorder is not None:
                 audio_path = self.live_recorder.stop()
 
             final_text = ""
-            if self.live_transcriber is not None:
-                final_text = self.live_transcriber.stop(wait=True)
+            if recording_mode == LIVE_TRANSCRIPT_MODE:
+                if self.live_transcriber is not None:
+                    final_text = self.live_transcriber.stop(wait=True)
 
-            if self.live_transcript.strip():
-                final_text = self.live_transcript
-            elif not final_text:
-                final_text = self.live_transcript
+                if self.live_transcript.strip():
+                    final_text = self.live_transcript
+                elif not final_text:
+                    final_text = self.live_transcript
+            else:
+                if audio_path is None:
+                    raise TranscriptionError("Could not find recorded audio to transcribe.")
+                api_key = self.config.resolved_api_key()
+                if not api_key:
+                    raise TranscriptionError(
+                        f"Missing API key in {self.config.api_key_env_var}. "
+                        "Cannot transcribe recorded audio."
+                    )
+                self._update_status("Transcribing full recording...")
+                self._update_live_status("Transcribing full recording...")
+                delayed_transcriber = AudioTranscriber(api_key, model=self.model_menu.get())
+                final_text = delayed_transcriber.transcribe(
+                    str(audio_path),
+                    progress_callback=lambda message, _progress: self._update_live_status(
+                        f"Transcribing full recording... {message}"
+                    ),
+                )
 
             if transcript_path is not None:
                 saved_transcript = save_transcription(final_text, str(transcript_path))
@@ -1243,13 +1438,11 @@ class TranscriberApp(_DnDCTk):
     def _finish_live_recording_ui(self, audio_path: Optional[Path], transcript_path: str):
         self.live_recorder = None
         self.live_transcriber = None
+        self.live_cancel_requested = False
+        self.live_audio_path = None
+        self.live_transcript_path = None
         self._set_live_controls_state("normal")
-        self.record_btn.configure(
-            text="Start Recording",
-            state="normal",
-            fg_color=PRIMARY_BUTTON_FG_COLOR,
-            hover_color=PRIMARY_BUTTON_HOVER_COLOR,
-        )
+        self._set_record_action_buttons_idle()
         self.mic_level_bar.set(0)
         self.system_level_bar.set(0)
         self._update_status("Live recording complete.")
@@ -1263,16 +1456,27 @@ class TranscriberApp(_DnDCTk):
         )
         self._restart_level_monitor()
 
+    def _finish_live_recording_cancel_ui(self):
+        self.live_recorder = None
+        self.live_transcriber = None
+        self.live_audio_path = None
+        self.live_transcript_path = None
+        self.live_cancel_requested = False
+        self._set_live_controls_state("normal")
+        self._set_record_action_buttons_idle()
+        self._reset_live_transcript()
+        self.mic_level_bar.set(0)
+        self.system_level_bar.set(0)
+        self._update_status("Live recording canceled.")
+        self.live_status_label.configure(text="Recording canceled. Discarded audio and transcript.")
+        self._restart_level_monitor()
+
     def _fail_live_recording_ui(self, message: str):
         self.live_recorder = None
         self.live_transcriber = None
+        self.live_cancel_requested = False
         self._set_live_controls_state("normal")
-        self.record_btn.configure(
-            text="Start Recording",
-            state="normal",
-            fg_color=PRIMARY_BUTTON_FG_COLOR,
-            hover_color=PRIMARY_BUTTON_HOVER_COLOR,
-        )
+        self._set_record_action_buttons_idle()
         self._update_status("Live recording failed.")
         self.live_status_label.configure(text=f"Live recording failed: {message}")
         messagebox.showerror("Live Recording", message)

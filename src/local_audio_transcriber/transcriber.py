@@ -43,14 +43,16 @@ class AudioTranscriber:
     
     SUPPORTED_FORMATS = {'.mp3', '.wav', '.m4a', '.mp4', '.mkv', '.webm', '.ogg', '.flac'}
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: str = "whisper-1"):
         """
         Initialize the transcriber with an OpenAI API key.
         
         Args:
             api_key: OpenAI API key for Whisper access
+            model: OpenAI transcription model name
         """
         self.client = OpenAI(api_key=api_key)
+        self.model = model or "whisper-1"
     
     def is_supported_format(self, file_path: str) -> bool:
         """Check if the file format is supported."""
@@ -194,7 +196,7 @@ class AudioTranscriber:
         """
         with open(file_path, 'rb') as audio_file:
             response = self.client.audio.transcriptions.create(
-                model="whisper-1",
+                model=self.model,
                 file=audio_file,
                 response_format="text"
             )

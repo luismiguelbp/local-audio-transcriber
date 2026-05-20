@@ -59,6 +59,25 @@ class ConfigManagerTests(unittest.TestCase):
 
         self.assertEqual(manager.resolved_api_key(), "from-default-env")
 
+    def test_live_recording_mode_defaults_to_live_transcript(self):
+        manager = app_main.ConfigManager()
+        self.assertEqual(manager.live_recording_mode, app_main.LIVE_TRANSCRIPT_MODE)
+
+    def test_live_recording_mode_invalid_value_falls_back(self):
+        manager = app_main.ConfigManager()
+        manager.live_recording_mode = "invalid"
+        self.assertEqual(manager.live_recording_mode, app_main.LIVE_TRANSCRIPT_MODE)
+
+    def test_live_recording_mode_persists_valid_value(self):
+        manager = app_main.ConfigManager()
+        manager.live_recording_mode = app_main.RECORD_AND_TRANSCRIBE_MODE
+
+        manager_reloaded = app_main.ConfigManager()
+        self.assertEqual(
+            manager_reloaded.live_recording_mode,
+            app_main.RECORD_AND_TRANSCRIBE_MODE,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
