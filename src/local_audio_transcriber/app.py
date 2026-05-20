@@ -539,6 +539,8 @@ class TranscriberApp(_DnDCTk):
         self.live_audio_path: Optional[Path] = None
         self.live_transcript_path: Optional[Path] = None
         self._drag_leave_after: Optional[str] = None
+        self._closing_in_progress = False
+        self._close_finished = False
         
         self._setup_window()
         self._create_widgets()
@@ -563,15 +565,40 @@ class TranscriberApp(_DnDCTk):
 
     def _on_close(self):
         """Stop audio resources before closing the app."""
+        if self._closing_in_progress:
+            return
+        self._closing_in_progress = True
+        self._close_finished = False
         logger.info("Closing application.")
-        self._stop_level_monitor()
-        if self.is_recording:
-            self.is_recording = False
-            if self.live_recorder is not None:
-                self.live_recorder.stop()
-            if self.live_transcriber is not None:
-                self.live_transcriber.stop(wait=False)
+        self.after(2500, self._force_destroy_on_close_timeout)
+        threading.Thread(target=self._close_worker, daemon=True).start()
+
+    def _close_worker(self):
+        try:
+            self.live_cancel_requested = True
+            self._stop_level_monitor(force=True)
+            if self.is_recording:
+                self.is_recording = False
+                if self.live_recorder is not None:
+                    self.live_recorder.stop(force=True)
+                if self.live_transcriber is not None:
+                    self.live_transcriber.stop(wait=False)
+        except Exception:
+            logger.exception("Error while closing audio resources.")
+        finally:
+            self.after(0, self._finish_close)
+
+    def _finish_close(self):
+        if self._close_finished:
+            return
+        self._close_finished = True
         self.destroy()
+
+    def _force_destroy_on_close_timeout(self):
+        if self._close_finished:
+            return
+        logger.warning("Close timeout reached. Forcing application shutdown.")
+        self._finish_close()
     
     def _create_widgets(self):
         """Create all UI widgets."""
@@ -1090,9 +1117,9 @@ class TranscriberApp(_DnDCTk):
         else:
             self._start_live_recording()
 
-    def _stop_level_monitor(self):
+    def _stop_level_monitor(self, force: bool = False):
         if self.live_monitor is not None:
-            self.live_monitor.stop()
+            self.live_monitor.stop(force=force)
             self.live_monitor = None
 
     def _restart_level_monitor(self):
@@ -1370,7 +1397,7 @@ class TranscriberApp(_DnDCTk):
         transcript_path = self.live_transcript_path
         try:
             if self.live_recorder is not None:
-                audio_path = self.live_recorder.stop()
+                audio_path = self.live_recorder.stop(force=True)
             if self.live_transcriber is not None:
                 self.live_transcriber.stop(wait=False)
 

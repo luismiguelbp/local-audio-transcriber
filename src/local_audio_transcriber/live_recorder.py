@@ -185,6 +185,22 @@ def _to_pcm16(data: np.ndarray) -> bytes:
     return (clipped * 32767.0).astype(np.int16).tobytes()
 
 
+def _stop_sounddevice_stream(stream: Optional[sd.InputStream], force: bool = False) -> None:
+    if stream is None:
+        return
+    try:
+        if force and hasattr(stream, "abort"):
+            stream.abort()
+        else:
+            stream.stop()
+    except Exception:
+        pass
+    try:
+        stream.close()
+    except Exception:
+        pass
+
+
 class LiveAudioRecorder:
     """Capture, mix, meter, segment, and record live audio."""
 
@@ -260,17 +276,13 @@ class LiveAudioRecorder:
         self._mix_thread = threading.Thread(target=self._mix_loop, daemon=True)
         self._mix_thread.start()
 
-    def stop(self) -> Path:
+    def stop(self, force: bool = False) -> Path:
         """Stop all streams, flush remaining audio, and return the WAV path."""
         logger.info("Stopping live audio recorder.")
         self._stop_event.set()
 
-        if self._mic_stream is not None:
-            try:
-                self._mic_stream.stop()
-                self._mic_stream.close()
-            except Exception:
-                pass
+        _stop_sounddevice_stream(self._mic_stream, force=force)
+        self._mic_stream = None
 
         if self._system_thread is not None and self._system_thread.is_alive():
             self._system_thread.join(timeout=2)
@@ -463,14 +475,9 @@ class LiveAudioLevelMonitor:
             self.stop()
             raise LiveRecorderError(f"Could not start audio level monitor: {exc}") from exc
 
-    def stop(self) -> None:
+    def stop(self, force: bool = False) -> None:
         self._stop_event.set()
-        if self._mic_stream is not None:
-            try:
-                self._mic_stream.stop()
-                self._mic_stream.close()
-            except Exception:
-                pass
+        _stop_sounddevice_stream(self._mic_stream, force=force)
         if self._system_thread is not None and self._system_thread.is_alive():
             self._system_thread.join(timeout=2)
         self._mic_stream = None
