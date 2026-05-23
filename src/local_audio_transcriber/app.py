@@ -71,10 +71,46 @@ DANGER_BUTTON_HOVER_COLOR = ("#991b1b", "#b91c1c")
 SUCCESS_BUTTON_FG_COLOR = ("#16a34a", "#22c55e")
 SUCCESS_BUTTON_HOVER_COLOR = ("#15803d", "#16a34a")
 ACTION_BUTTON_TEXT_COLOR = ("#f8fafc", "#f8fafc")
+CARD_CORNER_RADIUS = 12
+CONTROL_HEIGHT = 34
+PRIMARY_ACTION_HEIGHT = 40
+SECTION_HEADING_SIZE = 15
+SUBSECTION_HEADING_SIZE = 14
+HELPER_TEXT_SIZE = 11
+SELECTOR_FG_COLOR = ("#e6edf6", "#243247")
+SELECTOR_BUTTON_COLOR = ("#c8d7ea", "#36506e")
+SELECTOR_BUTTON_HOVER_COLOR = ("#b8cae0", "#456486")
+SELECTOR_DROPDOWN_FG_COLOR = ("#ffffff", "#1b2636")
 LIVE_TRANSCRIPTION_SEGMENT_SECONDS = 10
 LIVE_TRANSCRIPT_MODE = "Live Transcript"
 RECORD_AND_TRANSCRIBE_MODE = "Record and Transcribe"
 LIVE_RECORDING_MODES = (LIVE_TRANSCRIPT_MODE, RECORD_AND_TRANSCRIBE_MODE)
+
+
+def neutral_option_menu_style() -> dict:
+    """Shared neutral styling for option menus."""
+    return {
+        "height": CONTROL_HEIGHT,
+        "corner_radius": 8,
+        "fg_color": SELECTOR_FG_COLOR,
+        "button_color": SELECTOR_BUTTON_COLOR,
+        "button_hover_color": SELECTOR_BUTTON_HOVER_COLOR,
+        "text_color": PRIMARY_TEXT_COLOR,
+        "dropdown_fg_color": SELECTOR_DROPDOWN_FG_COLOR,
+        "dropdown_hover_color": HOVER_COLOR,
+        "dropdown_text_color": PRIMARY_TEXT_COLOR,
+    }
+
+
+def secondary_button_style() -> dict:
+    return {
+        "height": CONTROL_HEIGHT,
+        "corner_radius": 8,
+        "font": ctk.CTkFont(size=13),
+        "fg_color": SECONDARY_BUTTON_FG_COLOR,
+        "hover_color": SECONDARY_BUTTON_HOVER_COLOR,
+        "text_color": SECONDARY_BUTTON_TEXT_COLOR,
+    }
 
 
 def recording_mode_help_text(mode: str) -> str:
@@ -305,7 +341,7 @@ class SettingsDialog(ctk.CTkToplevel):
         self.result = None
         
         self.title("Settings")
-        self.geometry("560x450")
+        self.geometry("660x470")
         self.resizable(False, False)
         self.configure(fg_color=APP_BG_COLOR)
         
@@ -321,25 +357,18 @@ class SettingsDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             self,
             text="Theme",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(size=SECTION_HEADING_SIZE, weight="bold"),
             text_color=PRIMARY_TEXT_COLOR,
         ).pack(
-            anchor="w", padx=20, pady=(15, 5)
+            anchor="w", padx=20, pady=(18, 6)
         )
         self.theme_var = ctk.StringVar(value=config.theme)
         self.theme_menu = ctk.CTkOptionMenu(
             self,
             values=["System", "White", "Dark"],
             variable=self.theme_var,
-            width=180,
-            height=34,
-            corner_radius=8,
-            fg_color=PRIMARY_BUTTON_FG_COLOR,
-            button_color=PRIMARY_BUTTON_FG_COLOR,
-            button_hover_color=PRIMARY_BUTTON_HOVER_COLOR,
-            dropdown_fg_color=CARD_FG_COLOR,
-            dropdown_hover_color=HOVER_COLOR,
-            dropdown_text_color=PRIMARY_TEXT_COLOR,
+            width=200,
+            **neutral_option_menu_style(),
         )
         self.theme_menu.pack(anchor="w", padx=20)
 
@@ -347,24 +376,24 @@ class SettingsDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             self,
             text="OpenAI",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(size=SECTION_HEADING_SIZE, weight="bold"),
             text_color=PRIMARY_TEXT_COLOR,
         ).pack(
-            anchor="w", padx=20, pady=(20, 5)
+            anchor="w", padx=20, pady=(22, 6)
         )
         ctk.CTkLabel(
             self,
             text="Set the OS environment variable name that stores your OpenAI API key.",
             font=ctk.CTkFont(size=12),
             text_color=SECONDARY_TEXT_COLOR,
-            wraplength=500,
+            wraplength=620,
             justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 8))
 
         self.api_env_var_entry = ctk.CTkEntry(
             self,
-            width=460,
-            height=34,
+            width=620,
+            height=CONTROL_HEIGHT,
             corner_radius=8,
             fg_color=INPUT_FG_COLOR,
             border_color=INPUT_BORDER_COLOR,
@@ -379,7 +408,7 @@ class SettingsDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             self,
             text=f"{env_status}: {env_var_name}",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=HELPER_TEXT_SIZE),
             text_color=env_status_color,
         ).pack(anchor="w", padx=20, pady=(5, 0))
         
@@ -387,10 +416,10 @@ class SettingsDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             self,
             text="Output directory",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(size=SECTION_HEADING_SIZE, weight="bold"),
             text_color=PRIMARY_TEXT_COLOR,
         ).pack(
-            anchor="w", padx=20, pady=(20, 5)
+            anchor="w", padx=20, pady=(22, 6)
         )
         
         dir_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -398,8 +427,8 @@ class SettingsDialog(ctk.CTkToplevel):
         
         self.output_dir_entry = ctk.CTkEntry(
             dir_frame,
-            width=300,
-            height=34,
+            width=390,
+            height=CONTROL_HEIGHT,
             corner_radius=8,
             fg_color=INPUT_FG_COLOR,
             border_color=INPUT_BORDER_COLOR,
@@ -412,41 +441,26 @@ class SettingsDialog(ctk.CTkToplevel):
             dir_frame, 
             text="Browse", 
             width=70,
-            height=34,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13),
-            fg_color=SECONDARY_BUTTON_FG_COLOR,
-            hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            text_color=SECONDARY_BUTTON_TEXT_COLOR,
+            **secondary_button_style(),
             command=self._browse_output_dir
         ).pack(side="left", padx=(10, 0))
         ctk.CTkButton(
             dir_frame,
             text="Open",
             width=70,
-            height=34,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13),
-            fg_color=SECONDARY_BUTTON_FG_COLOR,
-            hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            text_color=SECONDARY_BUTTON_TEXT_COLOR,
+            **secondary_button_style(),
             command=self._open_output_dir,
         ).pack(side="left", padx=(10, 0))
         
         # Buttons
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=20, pady=30)
+        btn_frame.pack(fill="x", padx=20, pady=28)
         
         ctk.CTkButton(
             btn_frame, 
             text="Cancel", 
             width=100,
-            height=34,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13),
-            fg_color=SECONDARY_BUTTON_FG_COLOR,
-            hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            text_color=SECONDARY_BUTTON_TEXT_COLOR,
+            **secondary_button_style(),
             command=self.destroy
         ).pack(side="right")
         
@@ -454,7 +468,7 @@ class SettingsDialog(ctk.CTkToplevel):
             btn_frame, 
             text="Save", 
             width=100,
-            height=34,
+            height=CONTROL_HEIGHT,
             corner_radius=8,
             font=ctk.CTkFont(size=13, weight="bold"),
             fg_color=PRIMARY_BUTTON_FG_COLOR,
@@ -466,8 +480,8 @@ class SettingsDialog(ctk.CTkToplevel):
         master.update_idletasks()
         self.update_idletasks()
 
-        dialog_width = 560
-        dialog_height = 450
+        dialog_width = 660
+        dialog_height = 470
         x = master.winfo_rootx() + (master.winfo_width() - dialog_width) // 2
         y = master.winfo_rooty() + (master.winfo_height() - dialog_height) // 2
         self.geometry(f"{dialog_width}x{dialog_height}+{max(0, x)}+{max(0, y)}")
@@ -604,7 +618,7 @@ class TranscriberApp(_DnDCTk):
         """Create all UI widgets."""
         # Header
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.pack(fill="x", padx=20, pady=(20, 10))
+        header_frame.pack(fill="x", padx=20, pady=(18, 10))
         
         ctk.CTkLabel(
             header_frame, 
@@ -617,24 +631,14 @@ class TranscriberApp(_DnDCTk):
             header_frame, 
             text="Settings",
             width=92,
-            height=34,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13),
-            fg_color=SECONDARY_BUTTON_FG_COLOR,
-            hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            text_color=SECONDARY_BUTTON_TEXT_COLOR,
+            **secondary_button_style(),
             command=self._open_settings
         ).pack(side="right")
         ctk.CTkButton(
             header_frame,
             text="Output",
             width=92,
-            height=34,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13),
-            fg_color=SECONDARY_BUTTON_FG_COLOR,
-            hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            text_color=SECONDARY_BUTTON_TEXT_COLOR,
+            **secondary_button_style(),
             command=self._open_output_directory,
         ).pack(side="right", padx=(0, 10))
 
@@ -642,7 +646,7 @@ class TranscriberApp(_DnDCTk):
             self,
             values=["File Upload", "Live Recording"],
             command=self._switch_mode,
-            height=36,
+            height=CONTROL_HEIGHT + 2,
             corner_radius=8,
             font=ctk.CTkFont(size=13, weight="bold"),
             fg_color=SECONDARY_BUTTON_FG_COLOR,
@@ -666,10 +670,10 @@ class TranscriberApp(_DnDCTk):
         self.status_label = ctk.CTkLabel(
             self,
             text="Ready",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=HELPER_TEXT_SIZE),
             text_color=MUTED_TEXT_COLOR,
         )
-        self.status_label.pack(pady=(0, 10))
+        self.status_label.pack(pady=(0, 12))
 
     def _create_file_upload_widgets(self):
         """Create the existing file upload workflow."""
@@ -680,7 +684,7 @@ class TranscriberApp(_DnDCTk):
             fg_color=DROP_ZONE_FG_COLOR,
             border_width=1,
             border_color=BORDER_COLOR,
-            corner_radius=12
+            corner_radius=CARD_CORNER_RADIUS
         )
         self.drop_zone.pack(fill="x", padx=20, pady=10)
         self.drop_zone.pack_propagate(False)
@@ -691,7 +695,7 @@ class TranscriberApp(_DnDCTk):
         ctk.CTkLabel(
             drop_label_frame,
             text="Drop audio files here",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color=PRIMARY_TEXT_COLOR,
         ).pack()
         
@@ -707,7 +711,7 @@ class TranscriberApp(_DnDCTk):
             self.file_mode_frame,
             text="+ Add Audio Files",
             font=ctk.CTkFont(size=14, weight="bold"),
-            height=40,
+            height=PRIMARY_ACTION_HEIGHT,
             corner_radius=8,
             fg_color=PRIMARY_BUTTON_FG_COLOR,
             hover_color=PRIMARY_BUTTON_HOVER_COLOR,
@@ -718,7 +722,7 @@ class TranscriberApp(_DnDCTk):
         ctk.CTkLabel(
             self.file_mode_frame,
             text=f"Supported formats: {', '.join(SUPPORTED_EXTENSIONS)}",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=HELPER_TEXT_SIZE),
             text_color=MUTED_TEXT_COLOR,
         ).pack()
         
@@ -726,7 +730,7 @@ class TranscriberApp(_DnDCTk):
         queue_label = ctk.CTkLabel(
             self.file_mode_frame,
             text="File Queue",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=SUBSECTION_HEADING_SIZE, weight="bold"),
             text_color=PRIMARY_TEXT_COLOR,
             anchor="w"
         )
@@ -735,21 +739,36 @@ class TranscriberApp(_DnDCTk):
         # Scrollable queue container
         self.queue_frame = ctk.CTkScrollableFrame(
             self.file_mode_frame,
-            fg_color="transparent",
+            fg_color=CARD_FG_COLOR,
             scrollbar_button_color=SECONDARY_BUTTON_FG_COLOR,
             scrollbar_button_hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            corner_radius=0,
+            border_width=1,
+            border_color=BORDER_COLOR,
+            corner_radius=CARD_CORNER_RADIUS,
         )
         self.queue_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
         
-        # Empty queue message
-        self.empty_label = ctk.CTkLabel(
+        # Empty queue state
+        self.empty_state_frame = ctk.CTkFrame(
             self.queue_frame,
-            text="No files added yet",
-            font=ctk.CTkFont(size=13),
-            text_color=MUTED_TEXT_COLOR,
+            fg_color=DROP_ZONE_FG_COLOR,
+            corner_radius=10,
+            border_width=1,
+            border_color=BORDER_COLOR,
         )
-        self.empty_label.pack(pady=40)
+        ctk.CTkLabel(
+            self.empty_state_frame,
+            text="No files added yet",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=PRIMARY_TEXT_COLOR,
+        ).pack(padx=20, pady=(16, 4))
+        ctk.CTkLabel(
+            self.empty_state_frame,
+            text="Add audio files to start a transcription batch.",
+            font=ctk.CTkFont(size=HELPER_TEXT_SIZE),
+            text_color=MUTED_TEXT_COLOR,
+        ).pack(padx=20, pady=(0, 16))
+        self._show_empty_queue_state()
         
         # Bottom action bar
         action_frame = ctk.CTkFrame(self.file_mode_frame, fg_color="transparent")
@@ -759,22 +778,17 @@ class TranscriberApp(_DnDCTk):
             action_frame, 
             text="Clear All",
             width=100,
-            height=34,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13),
-            fg_color=SECONDARY_BUTTON_FG_COLOR,
-            hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            text_color=SECONDARY_BUTTON_TEXT_COLOR,
+            **secondary_button_style(),
             command=self._clear_queue,
             state="disabled"
         )
-        self.clear_btn.pack(side="left")
+        self.clear_btn.pack(side="right")
         
         self.transcribe_btn = ctk.CTkButton(
             action_frame, 
             text="Start Transcription",
             width=180,
-            height=40,
+            height=PRIMARY_ACTION_HEIGHT,
             corner_radius=8,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=PRIMARY_BUTTON_FG_COLOR,
@@ -782,23 +796,21 @@ class TranscriberApp(_DnDCTk):
             command=self._start_transcription,
             state="disabled"
         )
-        self.transcribe_btn.pack(side="right")
+        self.transcribe_btn.pack(side="left")
 
     def _create_live_recording_widgets(self):
         """Create the live recording workflow."""
         self.live_mode_frame.grid_columnconfigure(0, weight=1)
 
-        device_frame = ctk.CTkFrame(self.live_mode_frame, fg_color=CARD_FG_COLOR, corner_radius=12)
+        device_frame = ctk.CTkFrame(
+            self.live_mode_frame,
+            fg_color=CARD_FG_COLOR,
+            corner_radius=CARD_CORNER_RADIUS,
+            border_width=1,
+            border_color=BORDER_COLOR,
+        )
         device_frame.pack(fill="x", padx=20, pady=(5, 10))
         device_frame.grid_columnconfigure(1, weight=1)
-
-        ctk.CTkLabel(
-            device_frame,
-            text="Live Recording",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=PRIMARY_TEXT_COLOR,
-            anchor="w",
-        ).grid(row=0, column=0, columnspan=3, sticky="ew", padx=15, pady=(15, 10))
 
         ctk.CTkLabel(
             device_frame,
@@ -806,21 +818,14 @@ class TranscriberApp(_DnDCTk):
             text_color=SECONDARY_TEXT_COLOR,
             anchor="w",
         ).grid(
-            row=1, column=0, sticky="w", padx=15, pady=6
+            row=0, column=0, sticky="w", padx=15, pady=(15, 6)
         )
         self.mic_menu = ctk.CTkOptionMenu(
             device_frame,
             values=["Loading..."],
-            height=34,
-            corner_radius=8,
-            fg_color=PRIMARY_BUTTON_FG_COLOR,
-            button_color=PRIMARY_BUTTON_FG_COLOR,
-            button_hover_color=PRIMARY_BUTTON_HOVER_COLOR,
-            dropdown_fg_color=CARD_FG_COLOR,
-            dropdown_hover_color=HOVER_COLOR,
-            dropdown_text_color=PRIMARY_TEXT_COLOR,
+            **neutral_option_menu_style(),
         )
-        self.mic_menu.grid(row=1, column=1, sticky="ew", padx=(0, 15), pady=6)
+        self.mic_menu.grid(row=0, column=1, sticky="ew", padx=(0, 15), pady=(15, 6))
 
         ctk.CTkLabel(
             device_frame,
@@ -828,34 +833,22 @@ class TranscriberApp(_DnDCTk):
             text_color=SECONDARY_TEXT_COLOR,
             anchor="w",
         ).grid(
-            row=2, column=0, sticky="w", padx=15, pady=6
+            row=1, column=0, sticky="w", padx=15, pady=6
         )
         self.system_menu = ctk.CTkOptionMenu(
             device_frame,
             values=["Loading..."],
-            height=34,
-            corner_radius=8,
-            fg_color=PRIMARY_BUTTON_FG_COLOR,
-            button_color=PRIMARY_BUTTON_FG_COLOR,
-            button_hover_color=PRIMARY_BUTTON_HOVER_COLOR,
-            dropdown_fg_color=CARD_FG_COLOR,
-            dropdown_hover_color=HOVER_COLOR,
-            dropdown_text_color=PRIMARY_TEXT_COLOR,
+            **neutral_option_menu_style(),
         )
-        self.system_menu.grid(row=2, column=1, sticky="ew", padx=(0, 15), pady=6)
+        self.system_menu.grid(row=1, column=1, sticky="ew", padx=(0, 15), pady=6)
 
         ctk.CTkButton(
             device_frame,
             text="Refresh Devices",
             width=130,
-            height=34,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13),
-            fg_color=SECONDARY_BUTTON_FG_COLOR,
-            hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            text_color=SECONDARY_BUTTON_TEXT_COLOR,
+            **secondary_button_style(),
             command=self._refresh_audio_devices,
-        ).grid(row=1, column=2, rowspan=2, sticky="ns", padx=(0, 15), pady=6)
+        ).grid(row=0, column=2, rowspan=2, sticky="ns", padx=(0, 15), pady=(15, 6))
 
         ctk.CTkLabel(
             device_frame,
@@ -863,22 +856,15 @@ class TranscriberApp(_DnDCTk):
             text_color=SECONDARY_TEXT_COLOR,
             anchor="w",
         ).grid(
-            row=3, column=0, sticky="w", padx=15, pady=6
+            row=2, column=0, sticky="w", padx=15, pady=6
         )
         self.model_menu = ctk.CTkOptionMenu(
             device_frame,
             values=[DEFAULT_MODEL, ACCURATE_MODEL],
             command=self._on_model_selected,
-            height=34,
-            corner_radius=8,
-            fg_color=PRIMARY_BUTTON_FG_COLOR,
-            button_color=PRIMARY_BUTTON_FG_COLOR,
-            button_hover_color=PRIMARY_BUTTON_HOVER_COLOR,
-            dropdown_fg_color=CARD_FG_COLOR,
-            dropdown_hover_color=HOVER_COLOR,
-            dropdown_text_color=PRIMARY_TEXT_COLOR,
+            **neutral_option_menu_style(),
         )
-        self.model_menu.grid(row=3, column=1, sticky="ew", padx=(0, 15), pady=(6, 15))
+        self.model_menu.grid(row=2, column=1, sticky="ew", padx=(0, 15), pady=(6, 15))
         model_choice = self.config.transcription_model
         if model_choice not in (DEFAULT_MODEL, ACCURATE_MODEL):
             model_choice = DEFAULT_MODEL
@@ -891,22 +877,15 @@ class TranscriberApp(_DnDCTk):
             text_color=SECONDARY_TEXT_COLOR,
             anchor="w",
         ).grid(
-            row=4, column=0, sticky="w", padx=15, pady=(0, 15)
+            row=3, column=0, sticky="w", padx=15, pady=(0, 15)
         )
         self.live_recording_mode_menu = ctk.CTkOptionMenu(
             device_frame,
             values=list(LIVE_RECORDING_MODES),
             command=self._on_live_recording_mode_selected,
-            height=34,
-            corner_radius=8,
-            fg_color=PRIMARY_BUTTON_FG_COLOR,
-            button_color=PRIMARY_BUTTON_FG_COLOR,
-            button_hover_color=PRIMARY_BUTTON_HOVER_COLOR,
-            dropdown_fg_color=CARD_FG_COLOR,
-            dropdown_hover_color=HOVER_COLOR,
-            dropdown_text_color=PRIMARY_TEXT_COLOR,
+            **neutral_option_menu_style(),
         )
-        self.live_recording_mode_menu.grid(row=4, column=1, sticky="ew", padx=(0, 15), pady=(0, 15))
+        self.live_recording_mode_menu.grid(row=3, column=1, sticky="ew", padx=(0, 15), pady=(0, 15))
         mode_choice = self.config.live_recording_mode
         self.live_recording_mode_menu.set(mode_choice)
         self.config.live_recording_mode = mode_choice
@@ -916,11 +895,17 @@ class TranscriberApp(_DnDCTk):
             text_color=MUTED_TEXT_COLOR,
             anchor="w",
             justify="left",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=HELPER_TEXT_SIZE),
         )
-        self.mode_help_label.grid(row=5, column=1, sticky="ew", padx=(0, 15), pady=(0, 12))
+        self.mode_help_label.grid(row=4, column=1, sticky="ew", padx=(0, 15), pady=(0, 12))
 
-        meter_frame = ctk.CTkFrame(self.live_mode_frame, fg_color=CARD_FG_COLOR, corner_radius=12)
+        meter_frame = ctk.CTkFrame(
+            self.live_mode_frame,
+            fg_color=CARD_FG_COLOR,
+            corner_radius=CARD_CORNER_RADIUS,
+            border_width=1,
+            border_color=BORDER_COLOR,
+        )
         meter_frame.pack(fill="x", padx=20, pady=(0, 10))
         meter_frame.grid_columnconfigure(1, weight=1)
 
@@ -965,7 +950,7 @@ class TranscriberApp(_DnDCTk):
             control_frame,
             text="Start Recording",
             width=180,
-            height=40,
+            height=PRIMARY_ACTION_HEIGHT,
             corner_radius=8,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=PRIMARY_BUTTON_FG_COLOR,
@@ -978,12 +963,12 @@ class TranscriberApp(_DnDCTk):
             control_frame,
             text="Cancel",
             width=110,
-            height=40,
+            height=PRIMARY_ACTION_HEIGHT,
             corner_radius=8,
             font=ctk.CTkFont(size=14),
             fg_color=SECONDARY_BUTTON_FG_COLOR,
             hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            text_color=ACTION_BUTTON_TEXT_COLOR,
+            text_color=SECONDARY_BUTTON_TEXT_COLOR,
             command=self._cancel_live_recording,
             state="disabled",
         )
@@ -991,9 +976,10 @@ class TranscriberApp(_DnDCTk):
         self.live_status_label = ctk.CTkLabel(
             control_frame,
             text="Select devices, then speak or play audio to test the meters.",
-            font=ctk.CTkFont(size=12),
-            text_color=SECONDARY_TEXT_COLOR,
+            font=ctk.CTkFont(size=11),
+            text_color=MUTED_TEXT_COLOR,
             anchor="w",
+            justify="left",
         )
         self.live_status_label.pack(side="left", fill="x", expand=True, padx=15)
         self._set_record_action_buttons_idle()
@@ -1004,7 +990,7 @@ class TranscriberApp(_DnDCTk):
         ctk.CTkLabel(
             transcript_header,
             text="Live Transcript",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=SUBSECTION_HEADING_SIZE, weight="bold"),
             text_color=PRIMARY_TEXT_COLOR,
             anchor="w",
         ).pack(side="left")
@@ -1013,12 +999,7 @@ class TranscriberApp(_DnDCTk):
             transcript_header,
             text="Copy to Clipboard",
             width=150,
-            height=32,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13),
-            fg_color=SECONDARY_BUTTON_FG_COLOR,
-            hover_color=SECONDARY_BUTTON_HOVER_COLOR,
-            text_color=SECONDARY_BUTTON_TEXT_COLOR,
+            **secondary_button_style(),
             command=self._copy_live_transcript_to_clipboard,
         ).pack(side="right")
 
@@ -1026,7 +1007,7 @@ class TranscriberApp(_DnDCTk):
             self.live_mode_frame,
             height=220,
             wrap="word",
-            corner_radius=12,
+            corner_radius=CARD_CORNER_RADIUS,
             border_width=1,
             border_color=BORDER_COLOR,
             fg_color=CARD_FG_COLOR,
@@ -1577,8 +1558,8 @@ class TranscriberApp(_DnDCTk):
             )
             return
         
-        # Hide empty message
-        self.empty_label.pack_forget()
+        # Hide empty state
+        self._hide_empty_queue_state()
         
         # Create file item
         file_item = FileItem(
@@ -1597,7 +1578,7 @@ class TranscriberApp(_DnDCTk):
         self.file_items.remove(file_item)
         
         if not self.file_items:
-            self.empty_label.pack(pady=40)
+            self._show_empty_queue_state()
         
         self._update_buttons()
     
@@ -1610,8 +1591,16 @@ class TranscriberApp(_DnDCTk):
             item.destroy()
         self.file_items.clear()
         
-        self.empty_label.pack(pady=40)
+        self._show_empty_queue_state()
         self._update_buttons()
+
+    def _show_empty_queue_state(self):
+        if not self.empty_state_frame.winfo_manager():
+            self.empty_state_frame.pack(padx=12, pady=16, fill="x")
+
+    def _hide_empty_queue_state(self):
+        if self.empty_state_frame.winfo_manager():
+            self.empty_state_frame.pack_forget()
     
     def _update_buttons(self):
         """Update button states based on queue."""
