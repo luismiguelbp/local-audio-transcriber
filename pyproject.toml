@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "local-audio-transcriber"
+version = "0.1.0"
+description = "Desktop app for local audio transcription with OpenAI APIs."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "openai>=1.0.0",
+  "customtkinter>=5.0.0",
+  "pydub>=0.25.0",
+  "python-dotenv>=1.0.0",
+  "httpx>=0.27.0",
+  "numpy>=1.26.0",
+  "sounddevice>=0.4.6",
+  "PyAudioWPatch>=0.2.12; sys_platform == 'win32'",
+  "tkinterdnd2>=0.4.0",
+  "audioop-lts>=0.2.2; python_version >= '3.13'",
+]
+
+[project.scripts]
+local-audio-transcriber = "local_audio_transcriber.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
