@@ -1,179 +1,180 @@
 # Local Audio Transcriber
 
-A desktop application for transcribing audio files using OpenAI's Whisper API. Designed for meeting recordings and long audio files (1-2+ hours).
+A desktop app for transcribing local audio/video files and live recordings with OpenAI transcription models. It is designed for meeting recordings, long audio files, and quick live notes.
 
 ## Features
 
-- **Modern GUI** - Clean interface with selectable theme (System, White, Dark)
-- **Long File Support** - Automatically chunks files larger than 25MB for API compatibility
-- **Smart Splitting** - Uses silence detection to split audio at natural pauses
-- **Batch Processing** - Queue multiple files for transcription
-- **Progress Tracking** - Real-time progress for each file and chunk
-- **Live Recording Modes** - Choose `Live Transcript` for near-real-time updates or `Record and Transcribe` to transcribe after stopping
+- File upload transcription for audio and supported video containers
+- Batch queue with per-file progress
+- Long-file support with automatic chunking
+- Live recording with two modes:
+  - `Live Transcript`: shows transcript updates while recording
+  - `Record and Transcribe`: records first, then transcribes after you stop
+- Selectable theme: `System`, `White`, or `Dark`
+- Configurable output directory
 
-## Supported Audio Formats
+## Supported Formats
 
 - MP3, WAV, M4A, MP4, MKV, WebM, OGG, FLAC
 
-Video containers (`.mp4`, `.mkv`, `.webm`) are accepted: their audio track is
-extracted via FFmpeg before transcription. For `.mkv`, audio is always
-re-encoded to MP3 internally because the OpenAI Whisper API does not accept
-Matroska as an upload format.
+For video containers (`.mp4`, `.mkv`, `.webm`), the app extracts the audio track with FFmpeg before transcription.
 
-## Prerequisites
+## Quick Start
 
-### 1. Python 3.10+
+### macOS/Linux
 
-Download from [python.org](https://www.python.org/downloads/)
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
+export OPENAI_API_KEY="your-api-key"
+python -m local_audio_transcriber
+```
 
-### 2. FFmpeg (Required)
+### Windows PowerShell
 
-FFmpeg is needed for audio processing. Install it based on your operating system:
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pip install -e .
+setx OPENAI_API_KEY "your-api-key"
+python -m local_audio_transcriber
+```
 
-#### Windows
+After using `setx`, restart your terminal before launching the app so the new environment variable is available.
 
-**Option A: Using winget (recommended)**
+## Requirements
+
+### Python 3.10+
+
+Download Python from [python.org](https://www.python.org/downloads/).
+
+### FFmpeg
+
+FFmpeg is required for audio processing and video audio extraction.
+
+Windows:
+
 ```powershell
 winget install FFmpeg
 ```
 
-**Option B: Using Chocolatey**
-```powershell
-choco install ffmpeg
-```
-
-**Option C: Manual Installation**
-1. Download from [ffmpeg.org/download.html](https://ffmpeg.org/download.html)
-2. Extract to a folder (e.g., `C:\ffmpeg`)
-3. Add `C:\ffmpeg\bin` to your system PATH
-
-#### macOS
+macOS:
 
 ```bash
 brew install ffmpeg
 ```
 
-#### Linux (Ubuntu/Debian)
+Linux:
 
 ```bash
 sudo apt update
 sudo apt install ffmpeg
 ```
 
-### 3. OpenAI API Key Environment Variable
+### OpenAI API Key
 
-1. Sign up at [platform.openai.com](https://platform.openai.com/)
-2. Create an API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-3. Store it in your OS environment as `OPENAI_API_KEY`
+Create an API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys), then store it in an environment variable named `OPENAI_API_KEY`.
+
+macOS/Linux:
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+```
+
+Windows PowerShell:
+
+```powershell
+setx OPENAI_API_KEY "your-api-key"
+```
+
+You can change the environment variable name in the app Settings if needed.
 
 ## Installation
 
-1. **Clone or download this repository**
+Clone or download this repository, then from the project folder:
 
-2. **Create a virtual environment** (recommended)
-   ```bash
-   python -m venv .venv
-   
-   # Windows
-   .venv\Scripts\activate
-   
-   # macOS/Linux
-   source .venv/bin/activate
-   ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
+```
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+On Windows, activate the virtual environment with:
 
-4. **Install the app package (required for `python -m local_audio_transcriber`)**
-   ```bash
-   pip install -e .
-   ```
+```powershell
+.venv\Scripts\Activate.ps1
+```
 
 ## Usage
 
-1. **Start the application**
-   ```bash
-   python -m local_audio_transcriber
-   ```
+Start the app:
 
-   Alternative launchers:
-   - Windows: `scripts/launch-local-audio-transcriber.bat`
-   - Windows installer/bootstrap only: `scripts/install-local-audio-transcriber.bat`
-   - macOS Terminal: `scripts/launch-local-audio-transcriber.sh`
-   - macOS Finder: `scripts/launch-local-audio-transcriber.command`
-   - macOS installer/bootstrap only: `scripts/install-local-audio-transcriber.sh`
-   - The launchers call the installer script and then start the app
+```bash
+python -m local_audio_transcriber
+```
 
-2. **Configure OpenAI**
-   - The app reads the API key from an OS environment variable
-   - Default environment variable name: `OPENAI_API_KEY`
-   - You can change the environment variable name in Settings
+Alternative launchers are available in `scripts/`:
 
-3. **Add audio files**
-   - Click "Add Audio Files" to browse and select files
-   - Files appear in the queue with status indicators
+- Windows: `scripts/launch-local-audio-transcriber.bat`
+- macOS/Linux terminal: `scripts/launch-local-audio-transcriber.sh`
+- macOS Finder: `scripts/launch-local-audio-transcriber.command`
 
-4. **Start transcription**
-   - Click "Start Transcription"
-   - Watch progress for each file
-   - Results are saved as `.txt` files in the output directory
+### File Upload
 
-5. **Open output directory quickly**
-   - Use the `Output` button in the main header, or the `Open` button next to the output directory in Settings
+1. Open the `File Upload` tab.
+2. Add files with `Add Audio Files` or drag files into the drop zone.
+3. Click `Start Transcription`.
+4. Use `Output` to open the output directory.
 
-6. **Use Live Recording**
-   - Switch to **Live Recording** mode in the app
-   - Select microphone/system audio devices and your model
-   - Choose a recording mode:
-     - `Live Transcript`: transcript updates while recording
-     - `Record and Transcribe`: records first, then transcribes after you stop
-   - Quick rule:
-     - Pick `Live Transcript` for immediate notes during calls
-     - Pick `Record and Transcribe` when you want the best final transcript quality
-   - Recording controls:
-     - `Stop Recording`: finalize and save audio/transcript outputs
-     - `Cancel`: stop immediately, discard current audio/transcript, and reset the UI without completion popup
-   - Start recording and stop when finished; audio and transcript files are saved to the output directory
+### Live Recording
+
+1. Open the `Live Recording` tab.
+2. Select a microphone.
+3. Optionally select system audio if available.
+4. Choose a model and recording mode.
+5. Click `Start Recording`.
+6. Click `Stop Recording` when finished.
+
+Use `Live Transcript` for immediate notes while recording. Use `Record and Transcribe` when you prefer the final transcript to be generated after stopping.
+
+System audio capture is platform-dependent. Microphone recording works cross-platform; system loopback capture is currently supported through the Windows loopback backend.
 
 ## Configuration
 
 Settings are stored in `~/.local-transcriber/config.json`:
 
 - **Theme** - `System`, `White`, or `Dark`
-- **OpenAI API Key Env Var Name** - OS environment variable name used to resolve the API key (default: `OPENAI_API_KEY`)
-- **Output Directory** - Where transcription files are saved (default: `~/Documents/Transcriptions`)
-- **Live Recording Mode** - Default Live Recording behavior (`Live Transcript` or `Record and Transcribe`)
+- **OpenAI API Key Env Var Name** - environment variable name used to read the API key
+- **Output Directory** - where transcript files are saved
+- **Live Recording Mode** - default live recording behavior
 
-Application logs are written to `~/.local-transcriber/logs/application.log` with
-automatic rotation (up to 5 files of ~5MB each).
+Logs are written to `~/.local-transcriber/logs/application.log` with automatic rotation.
 
-## Cost Estimation
+## Notes About Cost
 
-OpenAI Whisper API pricing (as of 2024):
-- **$0.006 per minute** of audio
-
-| Recording Length | Estimated Cost |
-|-----------------|----------------|
-| 30 minutes      | ~$0.18         |
-| 1 hour          | ~$0.36         |
-| 2 hours         | ~$0.72         |
+Transcription uses OpenAI APIs, so usage may create costs on your OpenAI account. Check current pricing on the OpenAI platform before processing large batches or long recordings.
 
 ## Troubleshooting
 
 ### "FFmpeg not found" error
+
 - Ensure FFmpeg is installed and in your system PATH
 - Restart your terminal/application after installing FFmpeg
 - On Windows, you may need to restart your computer
 
 ### "API Key Required" error
+
 - Make sure `OPENAI_API_KEY` is set in your OS environment
 - If you use a different environment variable name, configure that name in Settings
 - Check that your API key has not expired or been revoked
 
 ### "ModuleNotFoundError: No module named 'tkinter'"
-- Your Python installation does not include Tk (GUI toolkit)
+
+- Your Python installation does not include Tk
 - Install Python from [python.org](https://www.python.org/downloads/windows/) or use:
   - `winget install Python.Python.3.12`
 - Recreate and reinstall in the project virtual environment:
@@ -182,50 +183,27 @@ OpenAI Whisper API pricing (as of 2024):
   - `.venv\Scripts\python.exe -m pip install -e .`
 
 ### Long processing time
+
 - Large files are split into chunks and processed sequentially
 - A 2-hour recording may take 5-15 minutes to process
 - API response time depends on OpenAI server load
 
 ### Transcription quality issues
+
 - Ensure good audio quality in the source file
 - Background noise can reduce accuracy
 - Consider using noise reduction tools before transcription
 
-## Technical Details
+## Developer Notes
 
 ### Chunking Strategy
 
 Files over 25MB are automatically split:
-- Target chunk duration: ~10 minutes
+
+- Target chunk duration: about 10 minutes
 - Splits occur at detected silence points to preserve context
 - Small overlap between chunks ensures no content is lost
 
-### File Structure
-
-```
-local-transcriber/
-├── pyproject.toml       # Modern Python project metadata
-├── requirements.txt     # Dependency list for simple installs
-├── scripts/
-│   ├── install-local-audio-transcriber.bat
-│   ├── install-local-audio-transcriber.sh
-│   ├── launch-local-audio-transcriber.bat
-│   ├── launch-local-audio-transcriber.sh
-│   └── launch-local-audio-transcriber.command
-├── src/
-│   └── local_audio_transcriber/
-│       ├── __init__.py
-│       ├── __main__.py
-│       ├── app.py
-│       ├── transcriber.py
-│       ├── streaming_transcriber.py
-│       └── live_recorder.py
-├── tests/
-│   ├── test_config_manager.py
-│   └── test_transcriber.py
-└── README.md
-```
-
 ## License
 
-MIT License - Feel free to use and modify.
+MIT License - feel free to use and modify.
