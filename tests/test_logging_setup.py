@@ -17,7 +17,15 @@ class LoggingSetupTests(unittest.TestCase):
                 log_file = log_dir / LOG_FILE_NAME
                 self.assertTrue(log_dir.exists())
                 self.assertTrue(log_file.exists())
-                self.assertIn("test log line", log_file.read_text(encoding="utf-8"))
+                logging.getLogger("local_audio_transcriber.tests").info(
+                    "Authorization: Bearer sk-testsecretvalue"
+                )
+                log_text = log_file.read_text(encoding="utf-8")
+                self.assertIn("test log line", log_text)
+                self.assertNotIn("sk-testsecretvalue", log_text)
+                self.assertIn("[redacted]", log_text)
+                self.assertEqual(log_dir.stat().st_mode & 0o077, 0)
+                self.assertEqual(log_file.stat().st_mode & 0o077, 0)
             finally:
                 # Release file handles so TemporaryDirectory cleanup works on Windows.
                 root_logger = logging.getLogger()

@@ -6,7 +6,12 @@ import threading
 from pathlib import Path
 from tkinter import messagebox
 
-from ..transcriber import AudioTranscriber, TranscriptionError, save_transcription
+from ..transcriber import (
+    AudioTranscriber,
+    TranscriptionError,
+    save_transcription,
+    transcription_filename,
+)
 
 
 class FileQueueController:
@@ -68,7 +73,7 @@ class FileQueueController:
                 )
 
                 input_path = Path(file_item.file_path)
-                output_path = output_dir / f"{input_path.stem}_transcription.txt"
+                output_path = output_dir / transcription_filename(input_path.name)
                 saved_path = save_transcription(result, str(output_path))
 
                 self.app._update_file_status(file_item, "complete", f"Saved: {Path(saved_path).name}")

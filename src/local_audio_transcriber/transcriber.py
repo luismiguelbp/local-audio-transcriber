@@ -5,14 +5,18 @@ Handles audio file processing, chunking for long files, and OpenAI Whisper API i
 """
 
 import os
+import re
 import tempfile
 import logging
 from pathlib import Path
 from typing import Callable, Optional
 
+import httpx
 from openai import OpenAI
 from pydub import AudioSegment
 from pydub.silence import detect_silence
+
+from .config import write_private_text
 
 
 # Constants
@@ -27,7 +31,24 @@ SILENCE_THRESH = -40  # Silence threshold in dB
 # Inputs outside this set (e.g. .mkv) must have their audio extracted to a
 # Whisper-compatible container before upload.
 WHISPER_NATIVE_FORMATS = {'.mp3', '.wav', '.m4a', '.mp4', '.webm', '.ogg', '.flac'}
+OPENAI_API_BASE = "https://api.openai.com/v1"
+_MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 logger = logging.getLogger(__name__)
+
+
+def safe_model_name(model: str, default: str) -> str:
+    value = (model or "").strip()
+    if _MODEL_NAME.fullmatch(value):
+        return value
+    return default
+
+
+def transcription_filename(source_name: str) -> str:
+    """Build a transcript filename that stays inside the output directory."""
+    cleaned = re.sub(r"[^A-Za-z0-9._ -]+", "_", Path(source_name).stem).strip(" .")
+    if cleaned in {"", ".", ".."}:
+        cleaned = "audio"
+    return f"{cleaned}_transcription.txt"
 
 
 class TranscriptionError(Exception):
@@ -51,8 +72,12 @@ class AudioTranscriber:
             api_key: OpenAI API key for Whisper access
             model: OpenAI transcription model name
         """
-        self.client = OpenAI(api_key=api_key)
-        self.model = model or "whisper-1"
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url=OPENAI_API_BASE,
+            http_client=httpx.Client(trust_env=False, follow_redirects=False),
+        )
+        self.model = safe_model_name(model, "whisper-1")
     
     def is_supported_format(self, file_path: str) -> bool:
         """Check if the file format is supported."""
@@ -393,11 +418,6 @@ def save_transcription(text: str, output_path: str) -> str:
     if output_path.suffix.lower() != '.txt':
         output_path = output_path.with_suffix('.txt')
     
-    # Create directory if needed
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Write the file
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(text)
+    write_private_text(output_path, text)
     
     return str(output_path)
