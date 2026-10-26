@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from pathlib import Path
 
 from .streaming_transcriber import DEFAULT_MODEL
@@ -12,9 +13,55 @@ from .streaming_transcriber import DEFAULT_MODEL
 logger = logging.getLogger(__name__)
 
 CONFIG_FILE = Path.home() / ".local-transcriber" / "config.json"
+_ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 LIVE_TRANSCRIPT_MODE = "Live Transcript"
 RECORD_AND_TRANSCRIBE_MODE = "Record and Transcribe"
 LIVE_RECORDING_MODES = (LIVE_TRANSCRIPT_MODE, RECORD_AND_TRANSCRIBE_MODE)
+
+
+def valid_env_name(value: object, default: str = "OPENAI_API_KEY") -> str:
+    """Return a single environment-variable name, or the default."""
+    name = str(value or "").strip()
+    if _ENV_NAME.fullmatch(name):
+        return name
+    return default
+
+
+def write_private_text(path: Path, text: str, *, private_parent: bool = False) -> None:
+    """Write text so the file is readable only by the current user."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if private_parent and os.name != "nt":
+        try:
+            os.chmod(path.parent, 0o700)
+        except OSError:
+            logger.warning("Could not restrict permissions on %s", path.parent)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as file:
+        file.write(text)
+    if os.name != "nt":
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            logger.warning("Could not restrict permissions on %s", path)
+
+
+def load_trusted_api_env() -> None:
+    """Load OpenAI key variables from the app dotenv file.
+
+    Proxy, CA-bundle, and API-host variables in that file are ignored so a
+    local dotenv file cannot redirect the API key.
+    """
+    env_path = CONFIG_FILE.parent / ".env"
+    if not env_path.is_file():
+        return
+    from dotenv import dotenv_values
+
+    for name, value in dotenv_values(env_path).items():
+        if not name or not value or not _ENV_NAME.fullmatch(name):
+            continue
+        if "OPENAI" not in name:
+            continue
+        os.environ.setdefault(name, value)
 
 
 class ConfigManager:
@@ -38,16 +85,30 @@ class ConfigManager:
             try:
                 with open(self.config_path, "r", encoding="utf-8") as file:
                     loaded_config = json.load(file)
+                had_stored_secret = "api_key" in loaded_config
                 loaded_config.pop("api_key", None)
-                return {**defaults, **loaded_config}
+                merged = {**defaults, **loaded_config}
+                merged["api_key_env_var"] = valid_env_name(merged.get("api_key_env_var"))
+                self.config = merged
+                if had_stored_secret or self._permissions_too_open():
+                    self.save()
+                return merged
             except (json.JSONDecodeError, IOError):
                 logger.warning("Failed to read config file %s. Using defaults.", self.config_path)
         return defaults
 
+    def _permissions_too_open(self) -> bool:
+        if os.name == "nt" or not self.config_path.exists():
+            return False
+        return bool(self.config_path.stat().st_mode & 0o077)
+
     def save(self):
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.config_path, "w", encoding="utf-8") as file:
-            json.dump(self.config, file, indent=2)
+        self.config.pop("api_key", None)
+        write_private_text(
+            self.config_path,
+            json.dumps(self.config, indent=2),
+            private_parent=True,
+        )
         logger.info("Configuration saved to %s", self.config_path)
 
     @property
@@ -118,13 +179,11 @@ class ConfigManager:
 
     @property
     def api_key_env_var(self) -> str:
-        value = str(self.config.get("api_key_env_var", "OPENAI_API_KEY")).strip()
-        return value or "OPENAI_API_KEY"
+        return valid_env_name(self.config.get("api_key_env_var"))
 
     @api_key_env_var.setter
     def api_key_env_var(self, value: str):
-        normalized = str(value).strip() or "OPENAI_API_KEY"
-        self.config["api_key_env_var"] = normalized
+        self.config["api_key_env_var"] = valid_env_name(value)
         self.save()
 
     def resolved_api_key(self) -> str:

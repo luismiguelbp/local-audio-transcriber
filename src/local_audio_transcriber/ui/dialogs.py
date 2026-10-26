@@ -30,14 +30,22 @@ from .theme import (
 def open_directory(path: Path):
     """Open a directory in the OS file manager."""
     directory = Path(path).expanduser()
+    if "\x00" in str(directory):
+        raise ValueError("Invalid directory")
+    if directory.exists() and not directory.is_dir():
+        raise ValueError("Output path is not a directory")
     directory.mkdir(parents=True, exist_ok=True)
+    resolved = directory.resolve(strict=True)
+    if not resolved.is_dir():
+        raise ValueError("Output path is not a directory")
+    target = str(resolved)
     if sys.platform.startswith("win"):
-        os.startfile(str(directory))  # type: ignore[attr-defined]
+        os.startfile(target)  # type: ignore[attr-defined]
         return
     if sys.platform == "darwin":
-        subprocess.run(["open", str(directory)], check=False)
+        subprocess.run(["open", "--", target], check=False)
         return
-    subprocess.run(["xdg-open", str(directory)], check=False)
+    subprocess.run(["xdg-open", target], check=False)
 
 
 class SettingsDialog(ctk.CTkToplevel):

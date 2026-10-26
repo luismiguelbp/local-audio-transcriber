@@ -12,7 +12,6 @@ from tkinter import filedialog, messagebox
 from typing import Optional
 
 import customtkinter as ctk
-from dotenv import load_dotenv
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from .live_recorder import (
@@ -32,6 +31,7 @@ from .config import (
     LIVE_RECORDING_MODES,
     LIVE_TRANSCRIPT_MODE,
     RECORD_AND_TRANSCRIBE_MODE,
+    load_trusted_api_env,
 )
 from .logging_setup import setup_logging
 from .ui.dialogs import SettingsDialog, open_directory
@@ -58,8 +58,8 @@ from .ui.views import FileUploadView, LiveRecordingView
 from .ui.widgets import FileItem
 
 
-# Load environment variables
-load_dotenv()
+# Load only OpenAI key variables from the app home dotenv file.
+load_trusted_api_env()
 
 # App configuration
 APP_NAME = "Local Audio Transcriber"

@@ -46,6 +46,30 @@ create_venv() {
   fi
 }
 
+PIP_2622_URL="https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
+
+trust_store_is_current() {
+  "$VENV_PYTHON" -c "
+from importlib.metadata import PackageNotFoundError, version
+def older(pkg, minimum):
+    try:
+        current = tuple(int(part) for part in version(pkg).split('.')[:3])
+    except PackageNotFoundError:
+        return True
+    return current < minimum
+raise SystemExit(0 if not older('pip', (26, 2, 2)) and not older('certifi', (2026, 10, 19)) else 1)
+"
+}
+
+ensure_trusted_installer() {
+  if trust_store_is_current; then
+    return 0
+  fi
+  echo "Updating pip and certifi for the October 2026 CA trust-store fix..."
+  "$VENV_PYTHON" -m pip install "pip @ ${PIP_2622_URL}" || return 1
+  "$VENV_PYTHON" -m pip install "certifi>=2026.10.19" || return 1
+}
+
 setup_failed() {
   echo
   echo "Failed to install dependencies automatically."
@@ -161,9 +185,11 @@ if ! venv_has_tkinter; then
   create_venv || exit 1
 fi
 
+ensure_trusted_installer || setup_failed
+
 if [ ! -f "$SETUP_MARKER" ]; then
   echo "Running first-time setup..."
-  "$VENV_PYTHON" -m pip install --upgrade pip || setup_failed
+  "$VENV_PYTHON" -m pip install --upgrade "pip>=26.2.2" || setup_failed
   "$VENV_PYTHON" -m pip install -r requirements.txt || setup_failed
   "$VENV_PYTHON" -m pip install -e . || setup_failed
   : > "$SETUP_MARKER"

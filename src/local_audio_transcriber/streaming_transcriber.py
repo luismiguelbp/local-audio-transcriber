@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import queue
+import re
 import tempfile
 import threading
 import wave
@@ -20,9 +21,12 @@ from typing import Callable, Optional
 import httpx
 import numpy as np
 
+from .logging_setup import redact_text
+
 
 OPENAI_TRANSCRIPTIONS_URL = "https://api.openai.com/v1/audio/transcriptions"
 DEFAULT_MODEL = "gpt-4o-mini-transcribe"
+_MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 ACCURATE_MODEL = "gpt-4o-transcribe"
 CONTEXT_PROMPT_CHARS = 1000
 
@@ -70,7 +74,8 @@ class RollingStreamingTranscriber:
         on_error: Optional[ErrorCallback] = None,
     ):
         self.api_key = api_key
-        self.model = model or DEFAULT_MODEL
+        requested_model = (model or "").strip()
+        self.model = requested_model if _MODEL_NAME.fullmatch(requested_model) else DEFAULT_MODEL
         self.language = language.strip()
         self.on_delta = on_delta
         self.on_segment_start = on_segment_start
@@ -181,51 +186,53 @@ class RollingStreamingTranscriber:
 
             with open(segment_path, "rb") as audio_file:
                 files = {"file": (Path(segment_path).name, audio_file, "audio/wav")}
-                with httpx.stream(
-                    "POST",
-                    OPENAI_TRANSCRIPTIONS_URL,
-                    headers=headers,
-                    data=data,
-                    files=files,
-                    timeout=120,
-                ) as response:
-                    if response.status_code >= 400:
-                        error_text = response.read().decode("utf-8", errors="replace")
-                        raise StreamingTranscriptionError(
-                            f"Transcription failed ({response.status_code}): {error_text}"
-                        )
+                with httpx.Client(trust_env=False, follow_redirects=False, timeout=120.0) as client:
+                    with client.stream(
+                        "POST",
+                        OPENAI_TRANSCRIPTIONS_URL,
+                        headers=headers,
+                        data=data,
+                        files=files,
+                    ) as response:
+                        if response.status_code >= 400:
+                            error_text = redact_text(response.read().decode("utf-8", errors="replace"))
+                            if self.api_key:
+                                error_text = error_text.replace(self.api_key, "[redacted]")
+                            raise StreamingTranscriptionError(
+                                f"Transcription failed ({response.status_code}): {error_text}"
+                            )
 
-                    for line in response.iter_lines():
-                        if not line:
-                            continue
-                        if line.startswith("data:"):
-                            line = line[5:].strip()
-                        if line == "[DONE]":
-                            break
+                        for line in response.iter_lines():
+                            if not line:
+                                continue
+                            if line.startswith("data:"):
+                                line = line[5:].strip()
+                            if line == "[DONE]":
+                                break
 
-                        try:
-                            event = json.loads(line)
-                        except json.JSONDecodeError:
-                            continue
-                        event_type = event.get("type")
-                        if event_type == "transcript.text.delta":
-                            delta = event.get("delta", "")
-                            if delta:
-                                if not segment_header_sent and self.on_segment_start is not None:
-                                    self.on_segment_start(segment_index, start_seconds, end_seconds)
-                                    segment_header_sent = True
-                                text_from_deltas += delta
-                                self._transcript_parts.append(delta)
-                                if self.on_delta is not None:
-                                    self.on_delta(delta)
-                        elif event_type == "transcript.text.done" and not text_from_deltas:
-                            text = event.get("text", "")
-                            if text:
-                                if not segment_header_sent and self.on_segment_start is not None:
-                                    self.on_segment_start(segment_index, start_seconds, end_seconds)
-                                self._transcript_parts.append(text)
-                                if self.on_delta is not None:
-                                    self.on_delta(text)
+                            try:
+                                event = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+                            event_type = event.get("type")
+                            if event_type == "transcript.text.delta":
+                                delta = event.get("delta", "")
+                                if delta:
+                                    if not segment_header_sent and self.on_segment_start is not None:
+                                        self.on_segment_start(segment_index, start_seconds, end_seconds)
+                                        segment_header_sent = True
+                                    text_from_deltas += delta
+                                    self._transcript_parts.append(delta)
+                                    if self.on_delta is not None:
+                                        self.on_delta(delta)
+                            elif event_type == "transcript.text.done" and not text_from_deltas:
+                                text = event.get("text", "")
+                                if text:
+                                    if not segment_header_sent and self.on_segment_start is not None:
+                                        self.on_segment_start(segment_index, start_seconds, end_seconds)
+                                    self._transcript_parts.append(text)
+                                    if self.on_delta is not None:
+                                        self.on_delta(text)
         finally:
             try:
                 Path(segment_path).unlink()

@@ -49,6 +49,13 @@ class ConfigManagerTests(unittest.TestCase):
 
         self.assertEqual(manager.resolved_api_key(), "")
         self.assertNotIn("api_key", manager.config)
+        self.assertNotIn("from-config", config_main.CONFIG_FILE.read_text(encoding="utf-8"))
+        self.assertEqual(config_main.CONFIG_FILE.stat().st_mode & 0o077, 0)
+
+    def test_api_key_env_var_rejects_non_identifiers(self):
+        manager = config_main.ConfigManager()
+        manager.api_key_env_var = "OPENAI_API_KEY\nHTTPS_PROXY"
+        self.assertEqual(manager.api_key_env_var, "OPENAI_API_KEY")
 
     def test_resolved_api_key_falls_back_to_default_openai_env(self):
         os.environ["OPENAI_API_KEY"] = "from-default-env"
